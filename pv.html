@@ -633,7 +633,7 @@ input[readonly]{background:transparent;border-style:dashed;color:var(--muted)}
       <legend><span class="n">2</span> Présences <span class="meta" id="attCount"></span></legend>
       <div class="row att row-head"><span>Nom et prénom</span><span>Fonction</span><span>Statut</span><span></span></div>
       <div class="rows" id="attRows"></div>
-      <button class="btn small ghost add" id="addAtt" type="button">Ajouter une personne</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn small ghost" id="addAtt" type="button">Ajouter une personne</button><button class="btn small" id="importBureau" type="button" title="Ajouter les membres du bureau enregistrés dans le registre">Importer le bureau depuis le registre</button></div>
       
     </fieldset>
 
@@ -748,6 +748,25 @@ function countAtt(){
 }
 document.getElementById('addAtt').onclick=()=>{ S.attendees.push({name:'',role:'',status:'Présent'}); renderAtt(); save();
   const ins=document.querySelectorAll('#attRows .row input'); ins[ins.length-2]?.focus(); };
+
+/* Import du bureau depuis le registre des membres (copie gardée sur cet appareil) */
+const POSTES_ORDRE=['Président(e)','Vice-Président(e)','Secrétaire Général(e)','Trésorier(ère)','Responsable RH','Responsable Événementiel','Responsable Communication','Responsable Sponsoring','Responsable Formation','Responsable Relations Externes','Responsable Média','Responsable IT et Design','Conseiller(ère)'];
+document.getElementById('importBureau').onclick=()=>{
+  let reg=null; try{ reg=JSON.parse(localStorage.getItem('club-registre-v1')||'null'); }catch(e){}
+  const bureau=(reg&&reg.members||[]).filter(m=>m.poste).sort((a,b)=>POSTES_ORDRE.indexOf(a.poste)-POSTES_ORDRE.indexOf(b.poste));
+  if(!bureau.length){ alert("Aucun membre du bureau trouvé sur cet appareil. Ouvrez d'abord le Registre des membres (avec Internet) depuis l'accueil, puis réessayez."); return; }
+  const name=(m)=>[m.prenom,m.nom].filter(Boolean).join(' ');
+  const have=new Set(S.attendees.map(a=>a.name.trim().toLowerCase()).filter(Boolean));
+  S.attendees=S.attendees.filter(a=>a.name.trim()||a.role.trim());
+  let added=0;
+  bureau.forEach(m=>{ const n=name(m); if(!have.has(n.toLowerCase())){ S.attendees.push({name:n,role:m.poste,status:'Présent'}); added++; } });
+  const pres=bureau.find(m=>m.poste==='Président(e)'), sg=bureau.find(m=>m.poste==='Secrétaire Général(e)');
+  if(pres && !S.meeting.chair) S.meeting.chair=name(pres);
+  if(sg && !S.meeting.secretary) S.meeting.secretary=name(sg);
+  if(!S.attendees.length) S.attendees.push({name:'',role:'',status:'Présent'});
+  bindSimple(); renderAtt(); save();
+  setStatus(added ? added+' membre(s) du bureau importé(s). Mettez à jour les statuts (présent, excusé, absent).' : 'Le bureau était déjà dans la liste des présences.');
+};
 
 /* ---------- Ordre du jour ---------- */
 function renderAgenda(){
