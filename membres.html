@@ -189,7 +189,7 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
     <div class="stats">
       <div class="stat"><b id="stTotal">0</b><span>membres</span></div>
       <div class="stat"><b id="stBureau">0</b><span id="stBureauLbl">au bureau</span></div>
-      <div class="stat"><b id="stPaid">0</b><span>adhésions réglées</span></div>
+      <div class="stat"><b id="stPaid">0</b><span id="stPaidLbl">adhésions réglées</span></div>
       <div class="stat warn"><b id="stUnpaid">0</b><span>adhésions à régler</span></div>
     </div>
 
@@ -276,9 +276,10 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
       </fieldset>
       <fieldset><legend>Adhésion</legend>
         <div class="grid">
-          <label class="check"><input type="checkbox" name="adhesion_payee" id="fPaid"> Adhésion réglée</label>
+          <label class="check"><input type="checkbox" name="adhesion_payee" id="fPaid"> <span id="fPaidLbl">Adhésion réglée</span></label>
           <label>Date de paiement<input type="date" name="adhesion_date" id="fPaidDate"></label>
         </div>
+        <p class="muted" style="font-size:13px;margin:6px 0 0" id="fAdhHist"></p>
       </fieldset>
       <label>Notes<textarea name="notes" rows="2"></textarea></label>
       <p class="msg err" id="formMsg" role="alert"></p>
@@ -327,6 +328,24 @@ function bureauOf(m){
   if(m.bureau) return String(m.bureau).split(';').map(x=>x.trim()).filter(Boolean).map(x=>{ const i=x.indexOf(':'); return {mandat:x.slice(0,i).trim(), poste:x.slice(i+1).trim()}; }).filter(b=>b.mandat&&b.poste);
   return m.poste ? [{mandat:CURRENT, poste:m.poste}] : [];          // fiches créées avant les mandats
 }
+/* Adhésions par année : colonne « adhesions » = "2025-2026: 2025-09-12; 2026-2027: 2026-09-20" */
+function adhesionsOf(m){
+  if(m.adhesions) return String(m.adhesions).split(';').map(x=>x.trim()).filter(Boolean).map(x=>{ const i=x.indexOf(':'); return {mandat:x.slice(0,i).trim(), date:x.slice(i+1).trim()}; }).filter(a=>a.mandat);
+  if(m.adhesion_payee) return [{mandat: m.adhesion_date ? mandatOf(m.adhesion_date+'T12:00:00') : CURRENT, date: m.adhesion_date||''}];   // anciennes fiches
+  return [];
+}
+function withAdhesion(m,paid,date){
+  const target = date ? mandatOf(date+'T12:00:00') : CURRENT;
+  const list=adhesionsOf(m).filter(a=>a.mandat!==target && a.mandat!==CURRENT);
+  const keepCurrent = adhesionsOf(m).find(a=>a.mandat===CURRENT && target!==CURRENT);
+  if(keepCurrent && paid) list.push(keepCurrent);
+  if(paid) list.push({mandat:target,date:date||''});
+  list.sort((a,b)=>a.mandat.localeCompare(b.mandat));
+  const cur=list.find(a=>a.mandat===CURRENT);
+  return {adhesions:list.map(a=>a.mandat+': '+a.date).join('; '), adhesion_payee:!!cur, adhesion_date:cur?cur.date:''};
+}
+const paidNow=(m)=> adhesionsOf(m).some(a=>a.mandat===CURRENT);
+const lastAdh=(m)=>{ const l=adhesionsOf(m); return l.length?l[l.length-1].mandat:''; };
 const posteIn=(m,mandat)=>{ const b=bureauOf(m).find(x=>x.mandat===mandat); return b?b.poste:''; };
 function withPoste(m,mandat,poste){
   const list=bureauOf(m).filter(x=>x.mandat!==mandat);
@@ -427,8 +446,8 @@ function filtered(){
     const p=posteIn(m,CURRENT);
     if(filter==='bureau' && !p) return false;
     if(filter==='nonbureau' && p) return false;
-    if(filter==='unpaid' && m.adhesion_payee) return false;
-    if(filter==='paid' && !m.adhesion_payee) return false;
+    if(filter==='unpaid' && paidNow(m)) return false;
+    if(filter==='paid' && !paidNow(m)) return false;
     if(pole && m.pole!==pole && (POSTES.find(x=>x[0]===p)||[])[1]!==pole) return false;
     if(q){ const hay=[m.prenom,m.nom,m.filiere,m.annee,m.telephone,m.email,p,m.pole].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
     return true;
@@ -445,16 +464,18 @@ function render(){
   $('stTotal').textContent=all.length;
   $('stBureau').textContent=all.filter(m=>posteIn(m,CURRENT)).length;
   $('stBureauLbl').textContent='au bureau '+CURRENT;
+  $('stPaidLbl').textContent='adhésions réglées '+CURRENT;
   $('chipBureau').textContent='Bureau '+CURRENT;
-  $('stPaid').textContent=all.filter(m=>m.adhesion_payee).length;
-  $('stUnpaid').textContent=all.filter(m=>!m.adhesion_payee).length;
+  $('stPaid').textContent=all.filter(paidNow).length;
+  $('stUnpaid').textContent=all.filter(m=>!paidNow(m)).length;
   const pend=pendingIds(), list=filtered();
   $('count').textContent = list.length===all.length ? all.length+' membre(s)' : list.length+' sur '+all.length+' membre(s)';
   $('list').innerHTML = list.length ? list.map(m=>{ const p=posteIn(m,CURRENT); return (
     '<button class="m" data-id="'+esc(m.id)+'"><div><div class="name">'+esc(full(m)||'Sans nom')+'</div>'+
     '<div class="sub">'+esc([m.filiere,m.annee].filter(Boolean).join(' · ')||'Filière non renseignée')+(m.pole?' · '+(m.pole===MEMBRE?MEMBRE:'Pôle '+esc(m.pole)):'')+'</div></div>'+
     '<div class="right">'+(p?'<span class="tag poste">'+esc(p)+'</span>':'')+
-    (m.adhesion_payee?'<span class="tag paid">Adhésion réglée'+(m.adhesion_date?' · '+fmtD(m.adhesion_date):'')+'</span>':'<span class="tag unpaid">Adhésion à régler</span>')+
+    (paidNow(m)?'<span class="tag paid">Adhésion réglée'+(adhesionsOf(m).find(a=>a.mandat===CURRENT).date?' · '+fmtD(adhesionsOf(m).find(a=>a.mandat===CURRENT).date):'')+'</span>'
+      : lastAdh(m)?'<span class="tag unpaid">À renouveler (dernière : '+lastAdh(m)+')</span>':'<span class="tag unpaid">Adhésion à régler</span>')+
     (pend.has(m.id)?'<span class="tag pending">En attente d\'envoi</span>':'')+'</div>'+
     ((m.telephone||m.email)?'<div class="contact">'+(m.telephone?'<a href="tel:'+esc(m.telephone.replace(/[^\d+]/g,''))+'" data-stop>'+esc(m.telephone)+'</a>':'')+
       (m.email?'<a href="mailto:'+esc(m.email)+'" data-stop>'+esc(m.email)+'</a>':'')+'</div>':'')+'</button>'); }
@@ -504,6 +525,7 @@ $('vList').onclick=()=>setView('list'); $('vOrg').onclick=()=>setView('org');
 $('fPole').innerHTML+=POLES.map(p=>'<option>'+esc(p)+'</option>').join('');
 $('fPoleForm').innerHTML+=POLES.map(p=>'<option>'+esc(p)+'</option>').join('');
 $('fPaid').onchange=()=>{ if($('fPaid').checked && !$('fPaidDate').value) $('fPaidDate').value=new Date().toISOString().slice(0,10); };
+$('fPaidDate').title="Date du paiement : elle détermine l'année universitaire de l'adhésion et sa recette dans la caisse.";
 
 /* ---------- Fiche membre ---------- */
 let editing=null;
@@ -513,8 +535,12 @@ function openForm(id){
   F.reset(); $('formMsg').textContent='';
   $('dlgTitle').textContent = editing ? full(editing) : 'Nouveau membre';
   $('delBtn').hidden=!editing;
-  if(editing) ['prenom','nom','filiere','annee','telephone','email','pole','adhesion_date','notes'].forEach(k=>{ F.elements[k].value=editing[k]||''; });
-  $('fPaid').checked = !!(editing && editing.adhesion_payee);
+  if(editing) ['prenom','nom','filiere','annee','telephone','email','pole','notes'].forEach(k=>{ F.elements[k].value=editing[k]||''; });
+  const cur=editing?adhesionsOf(editing).find(a=>a.mandat===CURRENT):null;
+  $('fPaid').checked=!!cur; $('fPaidDate').value=cur?cur.date:'';
+  $('fPaidLbl').textContent='Adhésion '+CURRENT+' réglée';
+  const past=editing?adhesionsOf(editing).filter(a=>a.mandat!==CURRENT):[];
+  $('fAdhHist').textContent = past.length ? 'Adhésions précédentes : '+past.map(a=>a.mandat).join(', ') : '';
   const h=editing?bureauOf(editing):[];
   $('fHist').innerHTML = h.length ? h.slice().reverse().map(b=>'<li><b>'+esc(b.mandat)+'</b> : '+esc(b.poste)+'</li>').join('') : '<li class="muted">Aucun poste pour le moment.</li>';
   $('dlg').showModal(); setTimeout(()=>F.elements.prenom.focus(),50);
@@ -527,7 +553,7 @@ F.addEventListener('submit',e=>{
   const base=editing||{};
   const m=Object.assign({},base,{ id: editing?editing.id:uid(), prenom:val('prenom'), nom:val('nom').toUpperCase(), filiere:val('filiere'), annee:val('annee'),
     telephone:val('telephone'), email:val('email').toLowerCase(), pole:val('pole'),
-    adhesion_payee:$('fPaid').checked, adhesion_date:$('fPaid').checked?val('adhesion_date'):'', notes:val('notes'), maj:new Date().toISOString() });
+    notes:val('notes'), maj:new Date().toISOString() }, withAdhesion(base,$('fPaid').checked,$('fPaid').checked?val('adhesion_date'):''));
   if(editing && !editing.bureau && editing.poste) Object.assign(m, withPoste(m,CURRENT,editing.poste));   // convertit les anciennes fiches
   if(!('bureau' in m)) m.bureau=''; if(!('poste' in m)) m.poste='';
   const err=[];
@@ -554,10 +580,10 @@ async function copy(txt,what){
 $('cpPhones').onclick=()=>copy(filtered().map(m=>m.telephone).filter(Boolean).join(', '),'téléphone');
 $('cpMails').onclick=()=>copy(filtered().map(m=>m.email).filter(Boolean).join(', '),'e-mail');
 $('csvBtn').onclick=()=>{
-  const cols=[['nom','Nom'],['prenom','Prénom'],['filiere','Filière'],['annee','Année'],['telephone','Téléphone'],['email','E-mail'],['_poste','Poste '+CURRENT],['pole','Pôle'],['_hist','Historique au bureau'],['adhesion_payee','Adhésion réglée'],['adhesion_date','Date d\'adhésion'],['notes','Notes']];
+  const cols=[['nom','Nom'],['prenom','Prénom'],['filiere','Filière'],['annee','Année'],['telephone','Téléphone'],['email','E-mail'],['_poste','Poste '+CURRENT],['pole','Pôle'],['_hist','Historique au bureau'],['_paid','Adhésion '+CURRENT],['adhesion_date','Date d\'adhésion'],['_adh','Historique des adhésions'],['notes','Notes']];
   const q=(v)=>'"'+String(v??'').replace(/"/g,'""')+'"';
   const cell=(m,k)=> k==='_poste'?posteIn(m,CURRENT) : k==='_hist'?bureauOf(m).map(b=>b.mandat+' : '+b.poste).join(' ; ') :
-    k==='adhesion_payee'?(m[k]?'Oui':'Non') : k==='adhesion_date'?fmtD(m[k]) : (k==='telephone'&&m[k])?'="'+m[k]+'"' : m[k];
+    k==='_paid'?(paidNow(m)?'Oui':'Non') : k==='_adh'?adhesionsOf(m).map(a=>a.mandat+(a.date?' ('+fmtD(a.date)+')':'')).join(' ; ') : k==='adhesion_date'?fmtD(m[k]) : (k==='telephone'&&m[k])?'="'+m[k]+'"' : m[k];
   const rows=[cols.map(c=>q(c[1])).join(';')].concat(filtered().map(m=>cols.map(([k])=>q(cell(m,k))).join(';')));
   const blob=new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'}), a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download='registre-membres-club-civil-'+new Date().toISOString().slice(0,10)+'.csv';
