@@ -753,8 +753,10 @@ document.getElementById('addAtt').onclick=()=>{ S.attendees.push({name:'',role:'
 const POSTES_ORDRE=['Président(e)','Vice-Président(e)','Secrétaire Général(e)','Trésorier(ère)','Responsable RH','Responsable Événementiel','Responsable Communication','Responsable Sponsoring','Responsable Formation','Responsable Relations Externes','Responsable Média','Responsable IT et Design','Conseiller(ère)'];
 document.getElementById('importBureau').onclick=()=>{
   let reg=null; try{ reg=JSON.parse(localStorage.getItem('club-registre-v1')||'null'); }catch(e){}
-  const bureau=(reg&&reg.members||[]).filter(m=>m.poste).sort((a,b)=>POSTES_ORDRE.indexOf(a.poste)-POSTES_ORDRE.indexOf(b.poste));
-  if(!bureau.length){ alert("Aucun membre du bureau trouvé sur cet appareil. Ouvrez d'abord le Registre des membres (avec Internet) depuis l'accueil, puis réessayez."); return; }
+  const mandat=yearOf(S.meeting.date);
+  const posteDe=(m)=>{ if(m.bureau){ const x=String(m.bureau).split(';').map(t=>t.trim()).find(t=>t.indexOf(mandat+':')===0); return x?x.slice(x.indexOf(':')+1).trim():''; } return mandat===yearOf('') ? (m.poste||'') : ''; };
+  const bureau=(reg&&reg.members||[]).map(m=>Object.assign({},m,{poste:posteDe(m)})).filter(m=>m.poste).sort((a,b)=>POSTES_ORDRE.indexOf(a.poste)-POSTES_ORDRE.indexOf(b.poste));
+  if(!bureau.length){ alert("Aucun membre du bureau "+mandat+" trouvé sur cet appareil. Vérifiez la composition du bureau dans le Registre des membres (ouvert une fois avec Internet), puis réessayez."); return; }
   const name=(m)=>[m.prenom,m.nom].filter(Boolean).join(' ');
   const have=new Set(S.attendees.map(a=>a.name.trim().toLowerCase()).filter(Boolean));
   S.attendees=S.attendees.filter(a=>a.name.trim()||a.role.trim());

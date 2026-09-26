@@ -132,6 +132,20 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
 
 .settings{margin-top:26px;font-size:13.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 
+/* Mandats */
+.mandat-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.mandat-bar select{width:auto;font-weight:700}
+.post .holders{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.holder{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.holder button.nm{all:unset;cursor:pointer;font-weight:700}
+.holder button.nm:hover{color:var(--steel);text-decoration:underline}
+.holder button.rm{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.holder button.rm:hover{color:var(--danger);background:var(--paper)}
+.post select{margin-top:8px;font-size:13.5px;padding:6px 8px}
+.post .multi{font-size:11px;color:var(--muted);font-weight:400}
+.hist{margin:0;padding-left:18px;font-size:14px}
+.invite{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.invite input{flex:1;min-width:220px;font-size:13px}
 @media (max-width:640px){
   .stats{grid-template-columns:1fr 1fr}
   .brand-logo{height:44px}
@@ -155,10 +169,10 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
   <!-- Connexion de l'appareil au registre -->
   <section id="setup" class="card" hidden>
     <h2>Relier cet appareil au registre</h2>
-    <p class="muted" style="margin-top:0">Les données des membres sont conservées dans le Google Sheets du club, pas sur ce site. Pour y accéder, il faut les deux informations fournies par le Secrétaire Général :</p>
+    <p class="muted" style="margin-top:0">Les données des membres sont conservées dans le Google Sheets du club, pas sur ce site public. La connexion se fait <b>une seule fois par appareil</b> :</p>
     <ol>
-      <li>l'<b>adresse du registre</b> (lien qui se termine par <code>/exec</code>) ;</li>
-      <li>le <b>code d'accès du bureau</b>.</li>
+      <li><b>Le plus simple :</b> ouvrez le <b>lien d'invitation</b> qu'un membre du bureau déjà connecté vous a envoyé en privé. L'appareil est relié automatiquement.</li>
+      <li>Sinon, saisissez ci-dessous l'adresse du registre (lien en <code>/exec</code>) et le code d'accès du bureau.</li>
     </ol>
     <div class="grid" style="grid-template-columns:1fr">
       <label>Adresse du registre<input id="cfgUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
@@ -174,14 +188,14 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
   <section id="app" hidden>
     <div class="stats">
       <div class="stat"><b id="stTotal">0</b><span>membres</span></div>
-      <div class="stat"><b id="stBureau">0</b><span>au bureau</span></div>
+      <div class="stat"><b id="stBureau">0</b><span id="stBureauLbl">au bureau</span></div>
       <div class="stat"><b id="stPaid">0</b><span>adhésions réglées</span></div>
       <div class="stat warn"><b id="stUnpaid">0</b><span>adhésions à régler</span></div>
     </div>
 
     <div class="views" role="tablist">
-      <button role="tab" id="vList" aria-selected="true">Membres</button>
-      <button role="tab" id="vOrg" aria-selected="false">Bureau</button>
+      <button role="tab" id="vList" aria-selected="true">Membres du club</button>
+      <button role="tab" id="vOrg" aria-selected="false">Bureau par mandat</button>
     </div>
 
     <div id="paneList">
@@ -193,7 +207,8 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
       <div class="tools">
         <div class="chips" role="group" aria-label="Filtres">
           <button class="chip" data-f="all" aria-pressed="true">Tous</button>
-          <button class="chip" data-f="bureau" aria-pressed="false">Bureau</button>
+          <button class="chip" data-f="bureau" aria-pressed="false" id="chipBureau">Bureau</button>
+          <button class="chip" data-f="nonbureau" aria-pressed="false">Hors bureau</button>
           <button class="chip" data-f="unpaid" aria-pressed="false">Adhésion à régler</button>
           <button class="chip" data-f="paid" aria-pressed="false">Adhésion réglée</button>
         </div>
@@ -207,10 +222,21 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
     </div>
 
     <div id="paneOrg" hidden>
-      <p class="muted" style="margin-top:0">Composition du bureau selon les postes du règlement. Un poste en pointillés n'est occupé par personne. Pour attribuer un poste, ouvrez la fiche du membre.</p>
+      <div class="mandat-bar">
+        <label style="flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--ink)">Mandat
+          <select id="mandatSel" aria-label="Choisir le mandat"></select></label>
+        <button class="btn small" id="newMandat">+ Nouveau mandat</button>
+        <button class="btn small" id="copyMandat" hidden></button>
+      </div>
+      <p class="muted" style="margin-top:0" id="orgHelp">Choisissez un membre dans la liste de chaque poste pour l'attribuer. Les membres doivent d'abord être ajoutés dans l'onglet « Membres du club ».</p>
       <div class="org" id="org"></div>
     </div>
 
+    <div class="card" style="margin-top:26px">
+      <h2 style="font-size:15px">Donner l'accès à un membre du bureau</h2>
+      <p class="muted" style="margin:0;font-size:13.5px">Ce lien relie un appareil au registre sans rien saisir. Envoyez-le <b>en privé</b>, uniquement aux membres du bureau : toute personne qui l'ouvre voit les coordonnées des membres.</p>
+      <div class="invite"><button class="btn small primary" id="inviteBtn">Copier le lien d'invitation</button><input id="inviteOut" readonly hidden aria-label="Lien d'invitation"></div>
+    </div>
     <div class="settings">
       <button class="btn small" id="refreshBtn">Actualiser</button>
       <button class="btn small danger" id="logoutBtn">Déconnecter cet appareil</button>
@@ -241,11 +267,12 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
           <label>E-mail<input name="email" type="email" autocomplete="off"></label>
         </div>
       </fieldset>
-      <fieldset><legend>Bureau</legend>
+      <fieldset><legend>Pôle et bureau</legend>
         <div class="grid">
-          <label>Poste<select name="poste" id="fPoste"><option value="">Aucun (membre)</option></select></label>
-          <label>Pôle<select name="pole" id="fPoleForm"><option value="">Aucun</option></select></label>
+          <label>Pôle<select name="pole" id="fPoleForm"><option value="">— Choisir —</option></select></label>
         </div>
+        <p class="muted" style="font-size:13px;margin:8px 0 4px">Postes au bureau (se gèrent dans l'onglet « Bureau par mandat ») :</p>
+        <ul class="hist" id="fHist"></ul>
       </fieldset>
       <fieldset><legend>Adhésion</legend>
         <div class="grid">
@@ -270,15 +297,16 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
 <script>
 (function(){
 const K_CFG='club-registre-config', K_CACHE='club-registre-v1', K_OPS='club-registre-ops';
-/* Postes du règlement, dans l'ordre, avec leur pôle */
+/* Postes du règlement : [intitulé, pôle, plusieurs titulaires possibles] */
 const POSTES=[
-  ['Président(e)','Présidence',1],['Vice-Président(e)','Présidence',2],['Secrétaire Général(e)','Secrétariat',1],
-  ['Trésorier(ère)','Trésorerie',1],['Responsable RH','Ressources humaines',1],['Responsable Événementiel','Événementiel',1],
-  ['Responsable Communication','Communication',1],['Responsable Sponsoring','Sponsoring',1],['Responsable Formation','Formation',1],
-  ['Responsable Relations Externes','Relations externes',1],['Responsable Média','Média',1],['Responsable IT et Design','IT et Design',1],
-  ['Conseiller(ère)','Conseil',2]
+  ['Président(e)','Présidence',false],['Vice-Président(e)','Présidence',true],['Secrétaire Général(e)','Secrétariat',false],
+  ['Trésorier(ère)','Trésorerie',false],['Responsable RH','Ressources humaines',false],['Responsable Événementiel','Événementiel',false],
+  ['Responsable Communication','Communication',false],['Responsable Sponsoring','Sponsoring',false],['Responsable Formation','Formation',false],
+  ['Responsable Relations Externes','Relations externes',false],['Responsable Média','Média',false],['Responsable IT et Design','IT et Design',false],
+  ['Conseiller(ère)','Conseil',true]
 ];
-const POLES=[...new Set(POSTES.map(p=>p[1]))];
+const MEMBRE='Membre du club';
+const POLES=[MEMBRE,...new Set(POSTES.map(p=>p[1]))];
 
 const $=(id)=>document.getElementById(id);
 const esc=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -288,10 +316,40 @@ const ls={ get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v
 const uid=()=> (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'm'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const full=(m)=>[m.prenom,m.nom].filter(Boolean).join(' ');
 const fmtD=(d)=>{ if(!d) return ''; const x=new Date(d+'T12:00:00'); return isNaN(x)?d:x.toLocaleDateString('fr-FR'); };
-const posteRank=(p)=>{ const i=POSTES.findIndex(x=>x[0]===p); return i<0?99:i; };
+
+/* ---------- Mandats (année universitaire, de septembre à août) ---------- */
+function mandatOf(date){ const x=date?new Date(date):new Date(); const y=x.getFullYear(); return x.getMonth()>=8 ? y+'-'+(y+1) : (y-1)+'-'+y; }
+const CURRENT=mandatOf();
+const nextM=(m)=>{ const y=parseInt(m,10); return (y+1)+'-'+(y+2); };
+const prevM=(m)=>{ const y=parseInt(m,10); return (y-1)+'-'+y; };
+/* Colonne « bureau » : "2026-2027: Président(e); 2027-2028: Conseiller(ère)" */
+function bureauOf(m){
+  if(m.bureau) return String(m.bureau).split(';').map(x=>x.trim()).filter(Boolean).map(x=>{ const i=x.indexOf(':'); return {mandat:x.slice(0,i).trim(), poste:x.slice(i+1).trim()}; }).filter(b=>b.mandat&&b.poste);
+  return m.poste ? [{mandat:CURRENT, poste:m.poste}] : [];          // fiches créées avant les mandats
+}
+const posteIn=(m,mandat)=>{ const b=bureauOf(m).find(x=>x.mandat===mandat); return b?b.poste:''; };
+function withPoste(m,mandat,poste){
+  const list=bureauOf(m).filter(x=>x.mandat!==mandat);
+  if(poste) list.push({mandat,poste});
+  list.sort((a,b)=>a.mandat.localeCompare(b.mandat));
+  return Object.assign({},m,{bureau:list.map(x=>x.mandat+': '+x.poste).join('; '), poste:(list.find(x=>x.mandat===CURRENT)||{}).poste||'', maj:new Date().toISOString()});
+}
 
 let CFG=ls.get(K_CFG,null), CACHE=ls.get(K_CACHE,{members:[],at:null}), OPS=ls.get(K_OPS,[]);
-let filter='all', view='list', syncing=false, lastError='';
+let filter='all', syncing=false, lastError='', extraMandats=new Set(), mandat=CURRENT;
+
+/* ---------- Lien d'invitation : #acces=... (jamais envoyé au serveur de GitHub) ---------- */
+(function readInvite(){
+  const m=location.hash.match(/acces=([^&]+)/); if(!m) return;
+  try{ const o=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1]))))); if(o.u&&o.c){ CFG={url:o.u,code:o.c}; ls.set(K_CFG,CFG); } }catch(e){}
+  history.replaceState(null,'',location.pathname+location.search);
+})();
+$('inviteBtn').onclick=async()=>{
+  const tok=btoa(unescape(encodeURIComponent(JSON.stringify({u:CFG.url,c:CFG.code}))));
+  const link=location.origin+location.pathname+'#acces='+encodeURIComponent(tok);
+  const out=$('inviteOut'); out.hidden=false; out.value=link; out.select();
+  try{ await navigator.clipboard.writeText(link); $('inviteBtn').textContent='Lien copié ✓'; setTimeout(()=>$('inviteBtn').textContent="Copier le lien d'invitation",2000); }catch(e){}
+};
 
 /* ---------- Échanges avec le Google Sheets ---------- */
 async function api(action,payload){
@@ -309,7 +367,7 @@ async function sync(){
   try{
     const sent=OPS.slice();
     const j = sent.length ? await api('batch',{ops:sent}) : await api('list');
-    OPS=OPS.slice(sent.length); ls.set(K_OPS,OPS);           // garde ce qui a été ajouté pendant l'envoi
+    OPS=OPS.slice(sent.length); ls.set(K_OPS,OPS);
     CACHE={members:applyOps(j.members||[],OPS),at:new Date().toISOString()}; ls.set(K_CACHE,CACHE);
     lastError=''; again=OPS.length>0;
   }catch(e){ lastError=e.message; }
@@ -322,12 +380,11 @@ function applyOps(members,ops){
                     else ms=ms.filter(m=>m.id!==op.id); });
   return ms;
 }
-function queue(op){
+function queue(op,noSync){
   OPS=OPS.filter(o=>!(o.type==='save'&&op.type==='delete'&&o.member.id===op.id) && !(o.type==='save'&&op.type==='save'&&o.member.id===op.member.id));
   OPS.push(op); ls.set(K_OPS,OPS);
-  if(op.type==='save'){ const i=CACHE.members.findIndex(m=>m.id===op.member.id); if(i<0) CACHE.members.push(op.member); else CACHE.members[i]=op.member; }
-  else CACHE.members=CACHE.members.filter(m=>m.id!==op.id);
-  ls.set(K_CACHE,CACHE); render(); sync();
+  CACHE.members=applyOps(CACHE.members,[op]); ls.set(K_CACHE,CACHE);
+  if(!noSync){ render(); sync(); }
 }
 function setSync(){
   const s=$('sync'); s.hidden=!CFG; if(!CFG) return;
@@ -367,51 +424,85 @@ function pendingIds(){ return new Set(OPS.filter(o=>o.type==='save').map(o=>o.me
 function filtered(){
   const q=$('q').value.trim().toLowerCase(), pole=$('fPole').value;
   return CACHE.members.filter(m=>{
-    if(filter==='bureau' && !m.poste) return false;
+    const p=posteIn(m,CURRENT);
+    if(filter==='bureau' && !p) return false;
+    if(filter==='nonbureau' && p) return false;
     if(filter==='unpaid' && m.adhesion_payee) return false;
     if(filter==='paid' && !m.adhesion_payee) return false;
-    if(pole && m.pole!==pole) return false;
-    if(q){ const hay=[m.prenom,m.nom,m.filiere,m.annee,m.telephone,m.email,m.poste,m.pole].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+    if(pole && m.pole!==pole && (POSTES.find(x=>x[0]===p)||[])[1]!==pole) return false;
+    if(q){ const hay=[m.prenom,m.nom,m.filiere,m.annee,m.telephone,m.email,p,m.pole].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
     return true;
   }).sort((a,b)=> (a.nom||'').localeCompare(b.nom||'','fr') || (a.prenom||'').localeCompare(b.prenom||'','fr'));
+}
+function mandats(){
+  const s=new Set([CURRENT,...extraMandats]);
+  CACHE.members.forEach(m=>bureauOf(m).forEach(b=>s.add(b.mandat)));
+  return [...s].sort().reverse();
 }
 function render(){
   if(!CFG) return;
   const all=CACHE.members;
   $('stTotal').textContent=all.length;
-  $('stBureau').textContent=all.filter(m=>m.poste).length;
+  $('stBureau').textContent=all.filter(m=>posteIn(m,CURRENT)).length;
+  $('stBureauLbl').textContent='au bureau '+CURRENT;
+  $('chipBureau').textContent='Bureau '+CURRENT;
   $('stPaid').textContent=all.filter(m=>m.adhesion_payee).length;
   $('stUnpaid').textContent=all.filter(m=>!m.adhesion_payee).length;
   const pend=pendingIds(), list=filtered();
   $('count').textContent = list.length===all.length ? all.length+' membre(s)' : list.length+' sur '+all.length+' membre(s)';
-  $('list').innerHTML = list.length ? list.map(m=>
+  $('list').innerHTML = list.length ? list.map(m=>{ const p=posteIn(m,CURRENT); return (
     '<button class="m" data-id="'+esc(m.id)+'"><div><div class="name">'+esc(full(m)||'Sans nom')+'</div>'+
-    '<div class="sub">'+esc([m.filiere,m.annee].filter(Boolean).join(' · ')||'Filière non renseignée')+(m.pole&&!m.poste?' · Pôle '+esc(m.pole):'')+'</div></div>'+
-    '<div class="right">'+(m.poste?'<span class="tag poste">'+esc(m.poste)+'</span>':'')+
+    '<div class="sub">'+esc([m.filiere,m.annee].filter(Boolean).join(' · ')||'Filière non renseignée')+(m.pole?' · '+(m.pole===MEMBRE?MEMBRE:'Pôle '+esc(m.pole)):'')+'</div></div>'+
+    '<div class="right">'+(p?'<span class="tag poste">'+esc(p)+'</span>':'')+
     (m.adhesion_payee?'<span class="tag paid">Adhésion réglée'+(m.adhesion_date?' · '+fmtD(m.adhesion_date):'')+'</span>':'<span class="tag unpaid">Adhésion à régler</span>')+
     (pend.has(m.id)?'<span class="tag pending">En attente d\'envoi</span>':'')+'</div>'+
     ((m.telephone||m.email)?'<div class="contact">'+(m.telephone?'<a href="tel:'+esc(m.telephone.replace(/[^\d+]/g,''))+'" data-stop>'+esc(m.telephone)+'</a>':'')+
-      (m.email?'<a href="mailto:'+esc(m.email)+'" data-stop>'+esc(m.email)+'</a>':'')+'</div>':'')+'</button>'
-  ).join('') : '<div class="empty">'+(all.length?'Aucun membre ne correspond à ces filtres.':'Le registre est vide. Commencez par ajouter les membres du bureau.')+'</div>';
-  // Organigramme
-  $('org').innerHTML = POSTES.map(([p])=>{
-    const who=all.filter(m=>m.poste===p);
-    return '<div class="post'+(who.length?'':' vacant')+'"><div class="t">'+esc(p)+'</div><div class="who">'+
-      (who.length ? who.map(m=>'<button data-id="'+esc(m.id)+'">'+esc(full(m))+'</button>').join(', ') : 'Poste vacant')+'</div></div>';
-  }).join('');
+      (m.email?'<a href="mailto:'+esc(m.email)+'" data-stop>'+esc(m.email)+'</a>':'')+'</div>':'')+'</button>'); }
+  ).join('') : '<div class="empty">'+(all.length?'Aucun membre ne correspond à ces filtres.':'Le registre est vide. Commencez par ajouter les membres du club.')+'</div>';
+  renderOrg();
+}
+function renderOrg(){
+  const all=CACHE.members, ms=mandats();
+  if(!ms.includes(mandat)) mandat=CURRENT;
+  $('mandatSel').innerHTML=ms.map(m=>'<option value="'+m+'"'+(m===mandat?' selected':'')+'>'+m+(m===CURRENT?' (en cours)':'')+'</option>').join('');
+  const inM=all.filter(m=>posteIn(m,mandat)), prev=prevM(mandat), inPrev=all.filter(m=>posteIn(m,prev));
+  const cp=$('copyMandat'); cp.hidden=!(inM.length===0 && inPrev.length>0); cp.textContent='Reprendre le bureau '+prev;
+  const sorted=all.slice().sort((a,b)=>full(a).localeCompare(full(b),'fr'));
+  $('org').innerHTML = all.length ? POSTES.map(([p,,multi])=>{
+    const who=all.filter(m=>posteIn(m,mandat)===p);
+    const free=sorted.filter(m=>!posteIn(m,mandat));
+    const canAdd = multi || who.length===0;
+    return '<div class="post'+(who.length?'':' vacant')+'"><div class="t">'+esc(p)+(multi?' <span class="multi">· plusieurs possibles</span>':'')+'</div>'+
+      '<div class="holders">'+(who.length ? who.map(m=>'<div class="holder"><button class="nm" data-open="'+esc(m.id)+'">'+esc(full(m))+'</button>'+
+        '<button class="rm" data-rm="'+esc(m.id)+'" title="Retirer de ce poste" aria-label="Retirer '+esc(full(m))+' de ce poste">✕</button></div>').join('') : '<div class="who">Poste vacant</div>')+'</div>'+
+      (canAdd ? '<select data-post="'+esc(p)+'" aria-label="Attribuer le poste '+esc(p)+'"><option value="">'+(who.length?'+ Ajouter une personne':'+ Attribuer ce poste')+'</option>'+
+        free.map(m=>'<option value="'+esc(m.id)+'">'+esc(full(m))+'</option>').join('')+'</select>' : '')+'</div>';
+  }).join('') : '<div class="empty" style="grid-column:1/-1">Ajoutez d\'abord les membres dans l\'onglet « Membres du club ».</div>';
 }
 $('list').addEventListener('click',e=>{ if(e.target.closest('[data-stop]')) return; const b=e.target.closest('.m'); if(b) openForm(b.dataset.id); });
-$('org').addEventListener('click',e=>{ const b=e.target.closest('button[data-id]'); if(b) openForm(b.dataset.id); });
+$('org').addEventListener('click',e=>{
+  const o=e.target.closest('[data-open]'); if(o){ openForm(o.dataset.open); return; }
+  const r=e.target.closest('[data-rm]'); if(r){ const m=CACHE.members.find(x=>x.id===r.dataset.rm); if(m && confirm('Retirer '+full(m)+' du poste « '+posteIn(m,mandat)+' » pour le mandat '+mandat+' ?')) queue({type:'save',member:withPoste(m,mandat,'')}); }
+});
+$('org').addEventListener('change',e=>{
+  const s=e.target.closest('select[data-post]'); if(!s||!s.value) return;
+  const m=CACHE.members.find(x=>x.id===s.value); if(m) queue({type:'save',member:withPoste(m,mandat,s.dataset.post)});
+});
+$('mandatSel').onchange=()=>{ mandat=$('mandatSel').value; renderOrg(); };
+$('newMandat').onclick=()=>{ const ms=mandats(); const n=nextM(ms[0]); extraMandats.add(n); mandat=n; renderOrg(); };
+$('copyMandat').onclick=()=>{
+  const prev=prevM(mandat), src=CACHE.members.filter(m=>posteIn(m,prev));
+  if(!confirm('Reprendre les '+src.length+' poste(s) du bureau '+prev+' pour le mandat '+mandat+' ? Vous pourrez ensuite modifier chaque poste.')) return;
+  src.forEach(m=>queue({type:'save',member:withPoste(m,mandat,posteIn(m,prev))},true)); render(); sync();
+};
 $('q').oninput=render; $('fPole').onchange=render;
 document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ filter=c.dataset.f; document.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===c)); render(); });
-function setView(v){ view=v; $('vList').setAttribute('aria-selected',v==='list'); $('vOrg').setAttribute('aria-selected',v==='org'); $('paneList').hidden=v!=='list'; $('paneOrg').hidden=v!=='org'; }
+function setView(v){ $('vList').setAttribute('aria-selected',v==='list'); $('vOrg').setAttribute('aria-selected',v==='org'); $('paneList').hidden=v!=='list'; $('paneOrg').hidden=v!=='org'; }
 $('vList').onclick=()=>setView('list'); $('vOrg').onclick=()=>setView('org');
 
 /* Listes déroulantes */
 $('fPole').innerHTML+=POLES.map(p=>'<option>'+esc(p)+'</option>').join('');
 $('fPoleForm').innerHTML+=POLES.map(p=>'<option>'+esc(p)+'</option>').join('');
-$('fPoste').innerHTML+=POSTES.map(p=>'<option>'+esc(p[0])+'</option>').join('');
-$('fPoste').onchange=()=>{ const p=POSTES.find(x=>x[0]===$('fPoste').value); if(p) $('fPoleForm').value=p[1]; };
 $('fPaid').onchange=()=>{ if($('fPaid').checked && !$('fPaidDate').value) $('fPaidDate').value=new Date().toISOString().slice(0,10); };
 
 /* ---------- Fiche membre ---------- */
@@ -422,8 +513,10 @@ function openForm(id){
   F.reset(); $('formMsg').textContent='';
   $('dlgTitle').textContent = editing ? full(editing) : 'Nouveau membre';
   $('delBtn').hidden=!editing;
-  if(editing) ['prenom','nom','filiere','annee','telephone','email','poste','pole','adhesion_date','notes'].forEach(k=>{ F.elements[k].value=editing[k]||''; });
+  if(editing) ['prenom','nom','filiere','annee','telephone','email','pole','adhesion_date','notes'].forEach(k=>{ F.elements[k].value=editing[k]||''; });
   $('fPaid').checked = !!(editing && editing.adhesion_payee);
+  const h=editing?bureauOf(editing):[];
+  $('fHist').innerHTML = h.length ? h.slice().reverse().map(b=>'<li><b>'+esc(b.mandat)+'</b> : '+esc(b.poste)+'</li>').join('') : '<li class="muted">Aucun poste pour le moment.</li>';
   $('dlg').showModal(); setTimeout(()=>F.elements.prenom.focus(),50);
 }
 $('addBtn').onclick=()=>openForm(null);
@@ -431,41 +524,41 @@ F.addEventListener('submit',e=>{
   const val=(k)=>F.elements[k].value.trim();
   if(e.submitter && e.submitter.value==='cancel') return;
   e.preventDefault();
-  const m={ id: editing?editing.id:uid(), prenom:val('prenom'), nom:val('nom').toUpperCase(), filiere:val('filiere'), annee:val('annee'),
-    telephone:val('telephone'), email:val('email').toLowerCase(), poste:val('poste'), pole:val('pole'),
-    adhesion_payee:$('fPaid').checked, adhesion_date:$('fPaid').checked?val('adhesion_date'):'', notes:val('notes'), maj:new Date().toISOString() };
+  const base=editing||{};
+  const m=Object.assign({},base,{ id: editing?editing.id:uid(), prenom:val('prenom'), nom:val('nom').toUpperCase(), filiere:val('filiere'), annee:val('annee'),
+    telephone:val('telephone'), email:val('email').toLowerCase(), pole:val('pole'),
+    adhesion_payee:$('fPaid').checked, adhesion_date:$('fPaid').checked?val('adhesion_date'):'', notes:val('notes'), maj:new Date().toISOString() });
+  if(editing && !editing.bureau && editing.poste) Object.assign(m, withPoste(m,CURRENT,editing.poste));   // convertit les anciennes fiches
+  if(!('bureau' in m)) m.bureau=''; if(!('poste' in m)) m.poste='';
   const err=[];
   if(!m.prenom||!m.nom) err.push('Le prénom et le nom sont obligatoires.');
   if(m.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email)) err.push("L'adresse e-mail ne semble pas valide.");
   if(m.telephone && m.telephone.replace(/\D/g,'').length<9) err.push('Le numéro de téléphone semble incomplet.');
-  const p=POSTES.find(x=>x[0]===m.poste);
-  if(p && p[2]===1){ const other=CACHE.members.find(x=>x.poste===m.poste && x.id!==m.id);
-    if(other && !confirm('Le poste « '+m.poste+' » est déjà occupé par '+full(other)+'. Le lui retirer et l\'attribuer à '+full(m)+' ?')) return;
-    if(other) queue({type:'save',member:Object.assign({},other,{poste:''})}); }
+  if(err.length){ $('formMsg').textContent=err.join(' '); return; }
   const dup=CACHE.members.find(x=>x.id!==m.id && (x.nom||'').toUpperCase()===m.nom && (x.prenom||'').toLowerCase()===m.prenom.toLowerCase());
   if(dup && !editing && !confirm(full(m)+' existe déjà dans le registre. Ajouter quand même une deuxième fiche ?')) return;
-  if(err.length){ $('formMsg').textContent=err.join(' '); return; }
   queue({type:'save',member:m}); $('dlg').close();
 });
 $('delBtn').onclick=()=>{
   if(!editing) return;
-  if(!confirm('Supprimer définitivement la fiche de '+full(editing)+' ?')) return;
+  if(!confirm('Supprimer définitivement la fiche de '+full(editing)+' ? Ses postes au bureau seront aussi effacés de l\'historique.')) return;
   queue({type:'delete',id:editing.id}); $('dlg').close();
 };
 
 /* ---------- Copier / exporter ---------- */
 async function copy(txt,what){
   if(!txt){ alert('Aucun '+what+' dans la liste affichée.'); return; }
-  try{ await navigator.clipboard.writeText(txt); toast(what.charAt(0).toUpperCase()+what.slice(1)+'s copiés.'); }
+  try{ await navigator.clipboard.writeText(txt); $('count').textContent=what.charAt(0).toUpperCase()+what.slice(1)+'s copiés.'; setTimeout(render,1800); }
   catch(e){ prompt('Copiez la liste ci-dessous :',txt); }
 }
-function toast(t){ const s=$('count'); const old=s.textContent; s.textContent=t; setTimeout(()=>render(),1800); }
 $('cpPhones').onclick=()=>copy(filtered().map(m=>m.telephone).filter(Boolean).join(', '),'téléphone');
 $('cpMails').onclick=()=>copy(filtered().map(m=>m.email).filter(Boolean).join(', '),'e-mail');
 $('csvBtn').onclick=()=>{
-  const cols=[['nom','Nom'],['prenom','Prénom'],['filiere','Filière'],['annee','Année'],['telephone','Téléphone'],['email','E-mail'],['poste','Poste'],['pole','Pôle'],['adhesion_payee','Adhésion réglée'],['adhesion_date','Date d\'adhésion'],['notes','Notes']];
+  const cols=[['nom','Nom'],['prenom','Prénom'],['filiere','Filière'],['annee','Année'],['telephone','Téléphone'],['email','E-mail'],['_poste','Poste '+CURRENT],['pole','Pôle'],['_hist','Historique au bureau'],['adhesion_payee','Adhésion réglée'],['adhesion_date','Date d\'adhésion'],['notes','Notes']];
   const q=(v)=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const rows=[cols.map(c=>q(c[1])).join(';')].concat(filtered().map(m=>cols.map(([k])=>q(k==='adhesion_payee'?(m[k]?'Oui':'Non'):k==='adhesion_date'?fmtD(m[k]):k==='telephone'&&m[k]?'="'+m[k]+'"':m[k])).join(';')));
+  const cell=(m,k)=> k==='_poste'?posteIn(m,CURRENT) : k==='_hist'?bureauOf(m).map(b=>b.mandat+' : '+b.poste).join(' ; ') :
+    k==='adhesion_payee'?(m[k]?'Oui':'Non') : k==='adhesion_date'?fmtD(m[k]) : (k==='telephone'&&m[k])?'="'+m[k]+'"' : m[k];
+  const rows=[cols.map(c=>q(c[1])).join(';')].concat(filtered().map(m=>cols.map(([k])=>q(cell(m,k))).join(';')));
   const blob=new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'}), a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download='registre-membres-club-civil-'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
@@ -473,6 +566,7 @@ $('csvBtn').onclick=()=>{
 
 show(); if(CFG) sync();
 })();
+
 </script>
 <script>
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
