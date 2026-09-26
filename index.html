@@ -48,7 +48,7 @@ img{max-width:100%}
 main{max-width:1080px;margin:0 auto;padding:22px 16px 48px}
 
 /* Reprise du brouillon de PV */
-.resume{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ochre);border-radius:8px;padding:14px 16px;margin-bottom:26px}
+.resume{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:14px 16px;margin-bottom:26px}
 .resume[hidden]{display:none}
 .resume p{margin:0;flex:1;min-width:220px}
 .resume b{display:block;font-size:15px}
@@ -69,12 +69,33 @@ a.tile:hover{border-color:var(--steel);transform:translateY(-1px);box-shadow:0 6
 .ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tile h3{margin:0 0 3px;font-size:16px;font-weight:700;line-height:1.25}
 .tile p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.4}
-.tile.live .ico{background:var(--ochre-soft);color:var(--ochre)}
+.tile.live .ico{background:var(--c-soft);color:var(--c)}
 .tile.soon{border-style:dashed;background:transparent}
 .tile.soon .ico{background:transparent;border:1px dashed var(--line);color:var(--muted)}
 .tile.soon h3{color:var(--muted)}
 .badge{position:absolute;top:10px;right:10px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--paper);color:var(--muted);border:1px solid var(--line)}
-.tile.live .badge{background:var(--ochre-soft);color:var(--ochre);border-color:transparent}
+.tile.live .badge{background:var(--c-soft);color:var(--c);border-color:transparent}
+a.tile:hover{border-color:var(--c)}
+.tile.soon .ico{border-color:var(--c-soft);color:var(--c);opacity:.75}
+.pole h2 .sw{width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+/* Couleur de chaque pôle */
+.c-sec{--c:#9A7300;--c-soft:#FFF1BF}
+.c-tre{--c:#1E7A4C;--c-soft:#DFF3E8}
+.c-rh {--c:#C0392B;--c-soft:#FBE2DE}
+.c-evt{--c:#D9570F;--c-soft:#FDE8DA}
+.c-com{--c:#0B7FB5;--c-soft:#DBF0FA}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .c-sec{--c:#F2C94C;--c-soft:#3A3014}
+  :root:not([data-theme="light"]) .c-tre{--c:#6FCF9B;--c-soft:#173226}
+  :root:not([data-theme="light"]) .c-rh {--c:#F08A7E;--c-soft:#3D1F1C}
+  :root:not([data-theme="light"]) .c-evt{--c:#F48A4A;--c-soft:#3A2518}
+  :root:not([data-theme="light"]) .c-com{--c:#6CC7F2;--c-soft:#13303F}
+}
+:root[data-theme="dark"] .c-sec{--c:#F2C94C;--c-soft:#3A3014}
+:root[data-theme="dark"] .c-tre{--c:#6FCF9B;--c-soft:#173226}
+:root[data-theme="dark"] .c-rh {--c:#F08A7E;--c-soft:#3D1F1C}
+:root[data-theme="dark"] .c-evt{--c:#F48A4A;--c-soft:#3A2518}
+:root[data-theme="dark"] .c-com{--c:#6CC7F2;--c-soft:#13303F}
 .tile h3{padding-right:62px}
 .tile > div{min-width:0;flex:1}
 
@@ -105,7 +126,7 @@ footer .sp{flex:1}
 </header>
 
 <main>
-  <div class="resume" id="resume" hidden>
+  <div class="resume c-sec" id="resume" hidden>
     <p><b>Un PV est en cours de rédaction</b><span id="resumeInfo"></span></p>
     <a class="btn primary" href="pv.html">Reprendre le PV</a>
   </div>
@@ -140,24 +161,24 @@ const I = {
 
 /* Pôles et outils. Pour activer un outil plus tard : lui donner un lien (href). */
 const POLES = [
-  {name:'Secrétariat', tools:[
+  {name:'Secrétariat', key:'sec', tools:[
     {ico:'pv', title:'Procès-verbaux', desc:'Rédiger le PV d\'une réunion, faire signer et télécharger en PDF.', href:'pv.html'},
     {ico:'cert', title:'Attestations', desc:'Attestations de membre ou de participation, en PDF.'}
   ]},
-  {name:'Trésorerie', tools:[
+  {name:'Trésorerie', key:'tre', tools:[
     {ico:'cash', title:'Caisse du club', desc:'Recettes, dépenses, solde et état financier pour l\'AG.'},
     {ico:'card', title:'Suivi des adhésions', desc:'Qui a réglé son adhésion, qui reste à relancer.'}
   ]},
-  {name:'Ressources humaines', tools:[
+  {name:'Ressources humaines', key:'rh', tools:[
     {ico:'members', title:'Registre des membres', desc:'Liste des membres, postes, coordonnées et adhésions, partagée avec le bureau.', href:'membres.html'},
     {ico:'tasks', title:'Suivi des tâches', desc:'Les actions décidées en réunion, suivies d\'une réunion à l\'autre.'}
   ]},
-  {name:'Événements et formation', tools:[
+  {name:'Événements et formation', key:'evt', tools:[
     {ico:'ticket', title:'Inscriptions', desc:'Inscriptions aux sorties et événements, avec nombre de places.'},
     {ico:'check', title:'Checklist logistique', desc:'Liste réutilisable pour préparer chaque événement.'},
     {ico:'learn', title:'Besoins en formation', desc:'Recenser les formations souhaitées par les membres.'}
   ]},
-  {name:'Communication et partenariats', tools:[
+  {name:'Communication et partenariats', key:'com', tools:[
     {ico:'mega', title:'Modèles d\'annonces', desc:'Messages types pour annoncer réunions et événements.'},
     {ico:'hand', title:'Suivi des sponsors', desc:'Entreprises contactées, relances et conventions.'},
     {ico:'book', title:'Annuaire des contacts', desc:'Administration, clubs, alumni et professionnels.'}
@@ -166,7 +187,7 @@ const POLES = [
 
 const esc=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 document.getElementById('poles').innerHTML = POLES.map(p=>
-  '<section class="pole"><h2>'+esc(p.name)+'</h2><div class="tiles">'+p.tools.map(t=>{
+  '<section class="pole c-'+p.key+'"><h2><span class="sw" aria-hidden="true"></span>'+esc(p.name)+'</h2><div class="tiles">'+p.tools.map(t=>{
     const inner='<span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24">'+I[t.ico]+'</svg></span>'+
       '<div><h3>'+esc(t.title)+'</h3><p>'+esc(t.desc)+'</p></div>';
     return t.href
