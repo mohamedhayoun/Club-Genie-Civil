@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Vérification d'attestation · Club Civil · ENSA Tétouan</title>
+<title>Vérification · Club Civil · ENSA Tétouan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
@@ -43,7 +43,7 @@ dt{color:var(--muted)} dd{margin:0;font-weight:600}
   <div class="card">
     <div class="status wait" id="st"><span class="ic">⏳</span><div><b>Vérification en cours…</b><span>Interrogation du registre officiel du club.</span></div></div>
     <dl id="info" hidden></dl>
-    <p class="note">Cette page vérifie l'authenticité d'une attestation délivrée par le Club Civil de l'ENSA Tétouan, à partir du QR code imprimé sur le document. Comparez les informations ci-dessus avec celles de l'attestation.</p>
+    <p class="note">Cette page vérifie l'authenticité d'une attestation ou d'une carte de membre du Club Civil de l'ENSA Tétouan, à partir du QR code imprimé sur le document. Comparez les informations ci-dessus avec celles de l'attestation.</p>
   </div>
 </main>
 <script>
@@ -52,7 +52,18 @@ dt{color:var(--muted)} dd{margin:0;font-weight:600}
   const esc=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const show=(cls,ic,t,s)=>{ st.className='status '+cls; st.innerHTML='<span class="ic">'+ic+'</span><div><b>'+t+'</b><span>'+s+'</span></div>'; };
   const p=new URLSearchParams(location.hash.slice(1));
-  const s=p.get('s'), n=p.get('n'), t=p.get('t');
+  const s=p.get('s'), n=p.get('n'), t=p.get('t'), c=p.get('c'), y=p.get('y');
+  if(s&&c&&y&&t){
+    if(!navigator.onLine){ show('wait','📶','Pas de connexion','Une connexion Internet est nécessaire pour vérifier la carte.'); return; }
+    fetch('https://script.google.com/macros/s/'+encodeURIComponent(s)+'/exec?c='+encodeURIComponent(c)+'&y='+encodeURIComponent(y)+'&t='+encodeURIComponent(t))
+      .then(r=>r.json()).then(j=>{
+        if(!j.ok||!j.trouve){ show('ko','✕','Carte introuvable','Ce QR code ne correspond à aucune carte de membre du club. Le document n\'est pas authentique ou a été modifié.'); return; }
+        if(j.valide) show('ok','✓','Carte de membre valide','Adhésion au Club Civil réglée pour l\'année '+esc(j.annee)+'.');
+        else show('ko','✕','Adhésion non valable','Cette personne figure au registre, mais son adhésion '+esc(j.annee)+' n\'est pas (ou plus) enregistrée.');
+        info.innerHTML=[['Membre',j.beneficiaire],['Filière',j.filiere],['Année',j.annee]].filter(r=>r[1]).map(r=>'<dt>'+r[0]+'</dt><dd>'+esc(r[1])+'</dd>').join(''); info.hidden=false;
+      }).catch(()=>show('wait','⚠️','Vérification impossible pour le moment','Le registre du club ne répond pas. Réessayez dans quelques instants.'));
+    return;
+  }
   if(!s||!n||!t){ show('ko','⚠️','Lien incomplet','Scannez à nouveau le QR code imprimé sur l\'attestation.'); return; }
   if(!navigator.onLine){ show('wait','📶','Pas de connexion','Une connexion Internet est nécessaire pour vérifier l\'attestation.'); return; }
   fetch('https://script.google.com/macros/s/'+encodeURIComponent(s)+'/exec?n='+encodeURIComponent(n)+'&t='+encodeURIComponent(t))
